@@ -26,10 +26,15 @@ describe Acme::Client do
   end
 
   context 'meta', vcr: { cassette_name: 'client_meta' } do
-    it { expect(client.meta).to be_a(Hash) }
-    it { expect(client.terms_of_service).to be_a(String) }
-    it { expect(client.website).to be_a(String) }
-    it { expect(client.external_account_required).to be_nil }
+    let(:letsencrypt_staging) { 'https://acme-staging-v02.api.letsencrypt.org/directory' }
+    let(:client) { Acme::Client.new(private_key: private_key, directory: letsencrypt_staging) }
+
+    it 'includes metadata from directory' do
+      expect(client.meta).to be_a(Hash)
+      expect(client.terms_of_service).to be_a(String)
+      expect(client.website).to be_a(String)
+      expect(client.external_account_required).to be_nil
+    end
   end
 
   context 'account operation' do
@@ -39,9 +44,10 @@ describe Acme::Client do
         expect(account.status).to eq('valid')
       end
 
-      it 'refuse the terms of service', vcr: { cassette_name: 'new_account_refuse_terms' } do
+      # TODO: pebble doesn't seem to require this; remove test?
+      xit 'refuse the terms of service', vcr: { cassette_name: 'new_account_refuse_terms' } do
         expect {
-          unregistered_client.new_account(contact: 'mailto:info@example.com', terms_of_service_agreed: false)
+          unregistered_client.new_account(contact: 'mailto:info@example.com')
         }.to raise_error(Acme::Client::Error::Malformed)
       end
     end
@@ -60,12 +66,14 @@ describe Acme::Client do
       end
 
       it 'load account from private key if the kid is unknown', vcr: { cassette_name: 'load_account_unkown_kid' } do
-        client = Acme::Client.new(
+        client
+
+        other_client = Acme::Client.new(
           private_key: private_key,
           directory: DIRECTORY_URL
         )
 
-        expect(client.account.status).to eq('valid')
+        expect(other_client.account.status).to eq('valid')
       end
     end
 
@@ -118,7 +126,7 @@ describe Acme::Client do
       it 'fail to fetch order from an invalid url', vcr: { cassette_name: 'fail_fetch_order' } do
         expect {
           client.order(url: "#{order_url}err")
-        }.to raise_error(Acme::Client::Error::Malformed, 'Invalid order ID')
+        }.to raise_error(Acme::Client::Error::NotFound)
       end
     end
 
@@ -176,20 +184,20 @@ describe Acme::Client do
       it 'finalize an order raise on csr mismatch', vcr: { cassette_name: 'finalize_csr_mismatch' } do
         expect {
           client.finalize(url: finalize_url, csr: csr)
-        }.to raise_error(Acme::Client::Error::Unauthorized)
+        }.to raise_error(Acme::Client::Error::Malformed)
       end
 
       it 'finalize an order raise on incomplete authorization', vcr: { cassette_name: 'finalize_incomplete_challenge' } do
         expect {
           client.finalize(url: finalize_url, csr: csr)
-        }.to raise_error(Acme::Client::Error::Unauthorized)
+        }.to raise_error(Acme::Client::Error::Malformed)
       end
 
       it 'finalize an order successfully when authorization challenges are completed', vcr: { cassette_name: 'finalize_succeed' } do
         challenge = authorization.http01
 
-        serve_once(challenge.file_content) do
-          client.request_challenge_validation(url: challenge.url, key_authorization: challenge.key_authorization)
+        run_challenge(challenge) do
+          challenge.request_validation
         end
 
         order = client.finalize(url: finalize_url, csr: csr)
@@ -205,8 +213,8 @@ describe Acme::Client do
       let(:challenge) { authorization.http01 }
 
       it 'download a certificate', vcr: { cassette_name: 'certificate_download' } do
-        serve_once(challenge.file_content) do
-          client.request_challenge_validation(url: challenge.url, key_authorization: challenge.key_authorization)
+        run_challenge(challenge) do
+          challenge.request_validation
         end
 
         order = client.finalize(url: finalize_url, csr: csr)
@@ -222,8 +230,8 @@ describe Acme::Client do
       let(:authorization) { client.authorization(url: order.authorization_urls.first) }
       let(:challenge) { authorization.http01 }
       let(:certificate) do
-        serve_once(challenge.file_content) do
-          client.request_challenge_validation(url: challenge.url, key_authorization: challenge.key_authorization)
+        run_challenge(challenge) do
+          challenge.request_validation
         end
 
         order = client.finalize(url: finalize_url, csr: csr)
@@ -232,12 +240,17 @@ describe Acme::Client do
       end
 
       # TODO: find a way to record fixtures for this, unsupported by pebble at the moment.
-      xit 'revoke a PEM string certificate', vcr: { cassette_name: 'revoke_pem_sucess' } do
-        serve_once(challenge.file_content) do
-          client.request_challenge_validation(url: challenge.url, key_authorization: challenge.key_authorization)
+      it 'revoke a PEM string certificate', vcr: { cassette_name: 'revoke_pem_sucess' } do
+        run_challenge(challenge) do
+          challenge.request_validation
         end
 
         order = client.finalize(url: finalize_url, csr: csr)
+
+        retry_until condition: -> { order.status == 'valid' } do
+          order = client.order(url: order.url)
+        end
+
         finalized_order = client.order(url: order.url)
         certificate = client.certificate(url: finalized_order.certificate_url)
 

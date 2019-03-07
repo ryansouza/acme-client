@@ -6,3 +6,7 @@ rvm:
   - 2.3.3
   - 2.4.0
   - 2.6.1
+
+before_script:
+  - docker-compose up -d
+  - until curl -k https://localhost:14000/dir &>/dev/null; do echo 'Waiting for pebble to boot...'; sleep 1; done

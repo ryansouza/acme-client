@@ -31,36 +31,34 @@ describe Acme::Client::Resources::Challenges do
 
   context 'request_validation' do
     it 'successfully verify the challenge', vcr: { cassette_name: 'challenge_verify_success' } do
-      serve_once(http01.file_content) do
-        expect {
-          expect(http01.request_validation).to be(true)
-        }.to_not raise_error
+      setup_challenge(http01)
 
-        expect {
-          retry_until(condition: lambda { http01.status != 'pending' }) do
-            http01.reload
-          end
-        }.to_not raise_error
+      expect {
+        expect(http01.request_validation).to be(true)
+      }.to_not raise_error
 
-        expect(http01.status).to eq('valid')
-      end
+      expect {
+        retry_until(condition: lambda { http01.status != 'pending' }) do
+          http01.reload
+        end
+      }.to_not raise_error
+
+      expect(http01.status).to eq('valid')
     end
 
     it 'fail to verify the challenge and return the status', vcr: { cassette_name: 'challenge_verify_failure' } do
-      serve_once("#{http01.file_content}-oops") do
-        expect {
-          expect(http01.request_validation).to be(true)
-        }.to_not raise_error
+      expect {
+        expect(http01.request_validation).to be(true)
+      }.to_not raise_error
 
-        expect {
-          retry_until(condition: lambda { http01.status != 'pending' }) do
-            http01.reload
-          end
-        }.to_not raise_error
+      expect {
+        retry_until(condition: lambda { http01.status != 'pending' }) do
+          http01.reload
+        end
+      }.to_not raise_error
 
-        expect(http01.status).to eq('invalid')
-        expect(http01.error).to_not be_empty
-      end
+      expect(http01.status).to eq('invalid')
+      expect(http01.error).to_not be_empty
     end
   end
 end

@@ -2,7 +2,6 @@ require 'socket'
 
 module TlsHelper
   def listen_tls(certificate, private_key)
-    return yield unless VCR.real_http_connections_allowed?
     server = tls_server(certificate, private_key)
 
     begin

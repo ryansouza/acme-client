@@ -211,11 +211,27 @@ Ruby >= 2.1
 
 ## Development
 
-All the tests use VCR to mock the interaction with the server. If you need to record new interaction you can specify the directory URL with the `ACME_DIRECTORY_URL` environment variable.
+All the tests expect a [pebble](https://github.com/letsencrypt/pebble) to fake interactions with an ACME provider.
+If you are running pebble or another ACME provider you can specify a directory URL to use with the `ACME_DIRECTORY_URL` environment variable.
 
 ```
-ACME_DIRECTORY_URL=https://acme-staging-v02.api.letsencrypt.org/directory rspec
+ACME_DIRECTORY_URL=https://acme-staging-v02.api.letsencrypt.org/directory bundle exec rspec
 ```
+
+### Pebble in Docker
+
+A [docker-compose.yml](/docker-compose.yml) is provided to run the two containers necessary for development.
+Running `docker-compose up` will start both a `pebble` and `challtestsrv` container.
+The pebble container is configured to use the challtestsrv for DNS lookups.
+The challtestsrv container is configured to listen on the default http-validation port pebble uses and respond with it's own IP for A DNS-record lookups.
+Together they provide a full fake test environment for interacting with an ACME provider.
+
+```
+docker-compose up # optionally -d to detach and leave running in background
+bundle exec rspec
+```
+
+See the spec [PebbleHelper](/spec/supprt/pebble_helper.rb) for an example of using the challtestsrv to pass a challenge.
 
 ## Pull request?
 

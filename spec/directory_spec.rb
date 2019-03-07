@@ -12,9 +12,14 @@ describe Acme::Client::Resources::Directory do
   end
 
   context 'meta', vcr: { cassette_name: 'directory_meta' } do
-    it { expect(directory.meta).to be_a(Hash) }
-    it { expect(directory.terms_of_service).to be_a(String) }
-    it { expect(directory.website).to be_a(String) }
-    it { expect(directory.external_account_required).to be_nil }
+    let(:letsencrypt_staging) { 'https://acme-staging-v02.api.letsencrypt.org/directory' }
+    let(:directory) { Acme::Client::Resources::Directory.new(letsencrypt_staging, {}) }
+
+    it 'includes metadata from directory response' do
+      expect(directory.meta).to be_a(Hash)
+      expect(directory.terms_of_service).to be_a(String)
+      expect(directory.website).to be_a(String)
+      expect(directory.external_account_required).to be_nil
+    end
   end
 end

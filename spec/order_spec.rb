@@ -30,11 +30,11 @@ describe Acme::Client::Resources::Order do
 
     it 'call client finalize failure', vcr: { cassette_name: 'order_finalize_fail' } do
       csr = Acme::Client::CertificateRequest.new(names: %w[example.com])
-      expect { order.finalize(csr: csr) }.to raise_error(Acme::Client::Error::Unauthorized)
+      expect { order.finalize(csr: csr) }.to raise_error(Acme::Client::Error::Malformed)
     end
 
     it 'call client finalize sucess', vcr: { cassette_name: 'order_finalize_sucess' } do
-      serve_once(challenge.file_content) do
+      run_challenge(challenge) do
         challenge.request_validation
       end
 
@@ -48,7 +48,7 @@ describe Acme::Client::Resources::Order do
     let(:challenge) { authorization.http01 }
 
     it 'call client certificate sucess', vcr: { cassette_name: 'order_certificate_download_sucess' } do
-      serve_once(challenge.file_content) do
+      run_challenge(challenge) do
         challenge.request_validation
       end
 
