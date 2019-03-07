@@ -21,17 +21,15 @@ class Acme::Client::Resources::Challenges::Base
     true
   end
 
-  def send_challenge_vallidation(url:, key_authorization:)
+  def send_challenge_vallidation(url:, key_authorization: nil)
     @client.request_challenge_validation(
       url: url,
-      key_authorization: key_authorization
     ).to_h
   end
 
   def request_validation
     assign_attributes(**send_challenge_vallidation(
       url: url,
-      key_authorization: key_authorization
     ))
     true
   end

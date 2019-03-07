@@ -16,7 +16,14 @@ class Acme::Client::FaradayMiddleware < Faraday::Middleware
     @env[:request_headers]['User-Agent'] = Acme::Client::USER_AGENT
     @env[:request_headers]['Content-Type'] = CONTENT_TYPE
 
+    # see spec https://ietf-wg-acme.github.io/acme/draft-ietf-acme-acme.html#post-as-get
+    if @env.method == :get
+      @env.method = :post
+      @env.body = nil
+    end
+
     @env.body = client.jwk.jws(header: jws_header, payload: env.body)
+
     @app.call(env).on_complete { |response_env| on_complete(response_env) }
   rescue Faraday::TimeoutError, Faraday::ConnectionFailed
     raise Acme::Client::Error::Timeout

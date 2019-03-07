@@ -17,7 +17,9 @@ class Acme::Client::JWK::Base
   def jws(header: {}, payload: {})
     header = jws_header(header)
     encoded_header = Acme::Client::Util.urlsafe_base64(header.to_json)
-    encoded_payload = Acme::Client::Util.urlsafe_base64(payload.to_json)
+
+    # see spec https://ietf-wg-acme.github.io/acme/draft-ietf-acme-acme.html#post-as-get
+    encoded_payload = payload.nil? ? '' : Acme::Client::Util.urlsafe_base64(payload.to_json)
 
     signature_data = "#{encoded_header}.#{encoded_payload}"
     signature = sign(signature_data)

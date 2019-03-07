@@ -90,7 +90,7 @@ class Acme::Client
       response.headers.fetch(:location)
     end
 
-    response = post(@kid)
+    response = get(@kid)
     arguments = attributes_from_account_response(response)
     Acme::Client::Resources::Account.new(self, url: @kid, **arguments)
   end
@@ -105,7 +105,7 @@ class Acme::Client
       identifiers
     else
       Array(identifiers).map do |identifier|
-        { type: 'dns', value: identifier }
+        identifier.is_a?(Hash) ? identifier : { type: 'dns', value: identifier }
       end
     end
     payload['notBefore'] = not_before if not_before
@@ -156,8 +156,8 @@ class Acme::Client
     Acme::Client::Resources::Challenges.new(self, **arguments)
   end
 
-  def request_challenge_validation(url:, key_authorization:)
-    response = post(url, payload: { keyAuthorization: key_authorization })
+  def request_challenge_validation(url:, key_authorization: nil)
+    response = post(url, payload: {})
     arguments = attributes_from_challenge_response(response)
     Acme::Client::Resources::Challenges.new(self, **arguments)
   end
@@ -258,7 +258,7 @@ class Acme::Client
   end
 
   def download(url, format:)
-    connection = connection_for(url: url, mode: :download)
+    connection = connection_for(url: url, mode: :kid)
     connection.get do |request|
       request.url(url)
       request.headers['Accept'] = CONTENT_TYPES.fetch(format)
