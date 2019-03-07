@@ -17,6 +17,7 @@ require 'acme/client/certificate_request'
 require 'acme/client/self_sign_certificate'
 require 'acme/client/resources'
 require 'acme/client/faraday_middleware'
+require 'acme/client/nonce_retry_middleware'
 require 'acme/client/jwk'
 require 'acme/client/error'
 require 'acme/client/util'
@@ -274,6 +275,7 @@ class Acme::Client
 
   def new_acme_connection(endpoint:, mode:)
     new_connection(endpoint: endpoint) do |configuration|
+      configuration.use Acme::Client::NonceRetryMiddleware
       configuration.use Acme::Client::FaradayMiddleware, client: self, mode: mode
     end
   end
